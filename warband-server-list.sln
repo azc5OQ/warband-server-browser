@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33110.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "warband-server-list", "warband-server-list\warband-server-list.csproj", "{E6874AEC-F420-47A9-B9F0-47ED669680ED}"
+	ProjectSection(ProjectDependencies) = postProject
+		{BF611BE2-D600-476A-AAEE-375AC891A757} = {BF611BE2-D600-476A-AAEE-375AC891A757}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "core", "core\core.vcxproj", "{BF611BE2-D600-476A-AAEE-375AC891A757}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E6874AEC-F420-47A9-B9F0-47ED669680ED}.Release|x64.ActiveCfg = Release|Any CPU
+		{E6874AEC-F420-47A9-B9F0-47ED669680ED}.Release|x64.Build.0 = Release|Any CPU
+		{BF611BE2-D600-476A-AAEE-375AC891A757}.Release|x64.ActiveCfg = Release|x64
+		{BF611BE2-D600-476A-AAEE-375AC891A757}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8CDBDC35-841D-4A14-AEA5-42C5EA8BA358}
+	EndGlobalSection
+EndGlobal
