@@ -1,5 +1,5 @@
 a tool to ask warband servers for info </br>
-this tool does it like in game client, in UDP
+this tool does it like in game client, in UDP,
 this way information of all servers can be retrieved
 
 
