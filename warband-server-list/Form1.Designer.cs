@@ -1,4 +1,4 @@
-﻿namespace warband_server_list
+namespace warband_server_list
 {
     partial class Form1
     {
@@ -127,9 +127,9 @@
             this.label_serversonline_value.AutoSize = true;
             this.label_serversonline_value.Location = new System.Drawing.Point(102, 424);
             this.label_serversonline_value.Name = "label_serversonline_value";
-            this.label_serversonline_value.Size = new System.Drawing.Size(51, 13);
+            this.label_serversonline_value.Size = new System.Drawing.Size(13, 13);
             this.label_serversonline_value.TabIndex = 3;
-            this.label_serversonline_value.Text = "unknown";
+            this.label_serversonline_value.Text = "0";
             // 
             // label_playersonline
             // 
@@ -145,9 +145,9 @@
             this.label_playersonline_value.AutoSize = true;
             this.label_playersonline_value.Location = new System.Drawing.Point(102, 450);
             this.label_playersonline_value.Name = "label_playersonline_value";
-            this.label_playersonline_value.Size = new System.Drawing.Size(51, 13);
+            this.label_playersonline_value.Size = new System.Drawing.Size(13, 13);
             this.label_playersonline_value.TabIndex = 5;
-            this.label_playersonline_value.Text = "unknown";
+            this.label_playersonline_value.Text = "0";
             // 
             // Form1
             // 
