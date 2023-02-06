@@ -7,46 +7,58 @@
 
 unsigned int bitmask_table[33];
 
-SOCKET client_socket = 0;
-SOCKADDR_IN* server_address = 0;
-SOCKADDR_IN* client_address = 0;
 
-
-unsigned char* received_data_buffer;
-unsigned char* data_to_send_buffer;
-char* testarry;
-char return_buffer[1000];
 
 #define RECEIVED_DATA_BUFFER_SIZE 1600
 #define DATA_TO_SEND_BUFFER_SIZE 1600
 
-
-cJSON* json_message_object1;
-
-int server_address_size;
-
-_Bool job_finished = false;
+bool is_bitsmask_table_initialized = false;
+bool is_console_initialized = false;
 
 
-_Bool did_receive_response_yet = false;
-unsigned long long timestamp_connected = 0;
 
-void watch(LPARAM blabla)
+typedef struct thread_context
+{
+    SOCKET client_socket;
+    SOCKADDR_IN* server_address;
+    SOCKADDR_IN* client_address;
+    unsigned char* received_data_buffer;
+    unsigned char* data_to_send_buffer;
+    char* testarry;
+    char return_buffer[1000];
+    cJSON* json_message_object1;
+    int server_address_size;
+    _Bool job_finished;
+    _Bool did_receive_response_yet;
+    unsigned long long timestamp_connected;
+} thread_context_t;
+
+thread_context_t thread_contexts[20];
+
+
+
+void watch(LPARAM thread_id)
 {
     while (1)
     {
         unsigned long long timestamp_now = timeGetTime();
 
-        if (did_receive_response_yet)
+        if (thread_contexts[thread_id].did_receive_response_yet)
         {
-            printf("did_receive_response_yet true\n ");
+#ifdef DEBUG_ACTIVE
+            printf("%s %d %s", "thread id: ", thread_id, "did_receive_response_yet true \n");
+#endif
+
             break;
         }
-        if ((timestamp_connected + 1500 < timestamp_now) && !did_receive_response_yet)
+        if ((thread_contexts[thread_id].timestamp_connected + 3500 < timestamp_now) && !thread_contexts[thread_id].did_receive_response_yet)
         {
             //time to skip
-            printf("OUT OF TIME, SKIPPING SERVER \n");
-            job_finished = true;
+#ifdef DEBUG_ACTIVE
+            printf("%s %d %s", "SKIPPING SERVER thread id: ", thread_id, " SKIPPING SERVER \n");
+#endif
+
+            thread_contexts[thread_id].job_finished = true;
             break;
         }
         Sleep(1);
@@ -404,18 +416,21 @@ int network_buffer__extract_int32(network_buffer_t* this, int size, int offset)
     return value;
 }
 
-void receive_data_thread(void)
+void receive_data_thread(LPVOID param)
 {
-    while (!job_finished)
-    {
-        memset(received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0);
+    int thread_id = (int)param;
+    printf("%s %d %s", "receive_data_thread", thread_id, "\n");
 
-        int received_bytes_count = recvfrom(client_socket, received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0, server_address, &server_address_size);
+    while (!thread_contexts[thread_id].job_finished)
+    {
+        memset(thread_contexts[thread_id].received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0);
+
+        int received_bytes_count = recvfrom(thread_contexts[thread_id].client_socket, thread_contexts[thread_id].received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0, thread_contexts[thread_id].server_address, &thread_contexts[thread_id].server_address_size);
 
         if (received_bytes_count < 0)
         {
             printf("failed to receive data");
-            job_finished = true;
+            thread_contexts[thread_id].job_finished = true;
             return;
         }
         else
@@ -423,7 +438,7 @@ void receive_data_thread(void)
             if (received_bytes_count == 6)
             {
                 //printf("%s %d %s", "%received_bytes_count", received_bytes_count, "\n");
-                memset(received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0);
+                memset(thread_contexts[thread_id].received_data_buffer, RECEIVED_DATA_BUFFER_SIZE, 0);
 
                 char peer0_1[] = { /* Packet 2 */
                 0x1f, 0xd0, 0xda, 0x76, 0x33, 0x40, 0x00, 0x24,
@@ -433,15 +448,15 @@ void receive_data_thread(void)
 
                 int data_to_send_size = sizeof(peer0_1);
 
-                memset(data_to_send_buffer, DATA_TO_SEND_BUFFER_SIZE, 0);
+                memset(thread_contexts[thread_id].data_to_send_buffer, DATA_TO_SEND_BUFFER_SIZE, 0);
 
-                memcpy(data_to_send_buffer, peer0_1, data_to_send_size);
+                memcpy(thread_contexts[thread_id].data_to_send_buffer, peer0_1, data_to_send_size);
 
-                int send_bytes_count = sendto(client_socket, data_to_send_buffer, data_to_send_size, 0, server_address, server_address_size);
+                int send_bytes_count = sendto(thread_contexts[thread_id].client_socket, thread_contexts[thread_id].data_to_send_buffer, data_to_send_size, 0, thread_contexts[thread_id].server_address, thread_contexts[thread_id].server_address_size);
             }
             if (received_bytes_count > 100)
             {
-                did_receive_response_yet = true; //information for watch thread
+                thread_contexts[thread_id].did_receive_response_yet = true; //information for watch thread
 
                 network_buffer_t network_buffer1 = { 0 };
                 memset(&network_buffer1, sizeof(network_buffer_t), 0);
@@ -449,7 +464,7 @@ void receive_data_thread(void)
                 network_buffer1.total_size_in_bits = 12000;
                 network_buffer1.size_in_bits = received_bytes_count * 8;
                 network_buffer1.cursor_in_bits = 0;
-                memcpy(&network_buffer1.data[0], received_data_buffer, received_bytes_count);
+                memcpy(&network_buffer1.data[0], thread_contexts[thread_id].received_data_buffer, received_bytes_count);
                 network_buffer1.buffer = &network_buffer1.data[0];
 
                 //
@@ -517,9 +532,10 @@ void receive_data_thread(void)
 
                 char server_name[50] = { 0 };
                 network_buffer__extract_c_str(&network_buffer1, &server_name, 50);
+#ifdef DEBUG_ACTIVE
                 printf("%s %s %s", "server name -> ", server_name, "\n");
-
-                cJSON_AddStringToObject(json_message_object1, "server_name", server_name); 
+#endif
+                cJSON_AddStringToObject(thread_contexts[thread_id].json_message_object1, "server_name", server_name);
 
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
@@ -527,7 +543,7 @@ void receive_data_thread(void)
                 //printf("%s %d %s", "compatible_game_version ", compatible_game_version, "\n");
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "compatible_game_version", compatible_game_version);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "compatible_game_version", compatible_game_version);
 
 
 
@@ -535,13 +551,13 @@ void receive_data_thread(void)
                 //printf("%s %d %s", "compatible_module_version ", compatible_module_version, "\n");
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "compatible_module_version", compatible_module_version);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "compatible_module_version", compatible_module_version);
 
                 char module_name[50] = { 0 };
                 network_buffer__extract_c_str(&network_buffer1, &module_name, 50);
                 //printf("%s %s %s", "module name -> ", module_name, "\n");
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
-                cJSON_AddStringToObject(json_message_object1, "module_name", module_name);
+                cJSON_AddStringToObject(thread_contexts[thread_id].json_message_object1, "module_name", module_name);
 
 
 
@@ -550,7 +566,7 @@ void receive_data_thread(void)
                 //printf("%s %d %s", "site_no -> ", site_no, "\n");
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "site_no", site_no);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "site_no", site_no);
 
 
 
@@ -559,13 +575,13 @@ void receive_data_thread(void)
                 //printf("%s %s %s", "game server map -> ", game_server_map, "\n");
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
-                cJSON_AddStringToObject(json_message_object1, "game_server_map", game_server_map);
+                cJSON_AddStringToObject(thread_contexts[thread_id].json_message_object1, "game_server_map", game_server_map);
 
 
 
                 unsigned short mission_template_no = network_buffer__extract_uint16(&network_buffer1, 16, 0);
                 //printf("%s %d %s", "mission_template_no -> ", mission_template_no, "\n");
-                cJSON_AddNumberToObject(json_message_object1, "mission_template_no", mission_template_no);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "mission_template_no", mission_template_no);
 
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
@@ -573,7 +589,7 @@ void receive_data_thread(void)
                 char game_server_mode[50] = { 0 };
                 network_buffer__extract_c_str(&network_buffer1, &game_server_mode, 50);
                 //printf("%s %s %s", "game_server_mode -> ", game_server_mode, "\n");
-                cJSON_AddStringToObject(json_message_object1, "game_server_mode", game_server_mode);
+                cJSON_AddStringToObject(thread_contexts[thread_id].json_message_object1, "game_server_mode", game_server_mode);
 
 
 
@@ -583,7 +599,7 @@ void receive_data_thread(void)
                 int current_players = network_buffer__extract_int32(&network_buffer1, 8, -1);
                 //printf("%s %d %s", "current_players -> ", current_players, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "current_players", current_players);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "current_players", current_players);
 
 
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
@@ -591,7 +607,7 @@ void receive_data_thread(void)
 
                 int max_players = network_buffer__extract_int32(&network_buffer1, 8, -1);
                 //printf("%s %d %s", "max_players -> ", max_players, "\n");
-                cJSON_AddNumberToObject(json_message_object1, "max_players", max_players);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "max_players", max_players);
 
 
 
@@ -601,7 +617,7 @@ void receive_data_thread(void)
                 unsigned int password_protected = network_buffer__extract_uint32(&network_buffer1, 1, 0);
                 //printf("%s %d %s", "password_protected ", password_protected, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "password_protected", password_protected);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "password_protected", password_protected);
 
 
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
@@ -609,21 +625,21 @@ void receive_data_thread(void)
                 unsigned int dedicated = network_buffer__extract_uint32(&network_buffer1, 1, 0);
                 //printf("%s %d %s", "dedicated ", dedicated, "\n");
 
-                cJSON_AddNumberToObject(json_message_object1, "dedicated", dedicated);
+                cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "dedicated", dedicated);
 
 
                 //printf("%s %d %s", "cursor in bits ", network_buffer1.cursor_in_bits, "\n");
 
                 //cJSON_AddItemToObject(json_root_object1, "message", json_message_object1);
 
-                char* json_root_object1_string = cJSON_PrintUnformatted(json_message_object1);
+                char* json_root_object1_string = cJSON_PrintUnformatted(thread_contexts[thread_id].json_message_object1);
 
                 //printf("%s %s %s", "json_root_object1_string ", json_root_object1_string, "\n");
 
 
-                memcpy(return_buffer, json_root_object1_string, strlen(json_root_object1_string));
+                memcpy(thread_contexts[thread_id].return_buffer, json_root_object1_string, strlen(json_root_object1_string));
 
-                job_finished = true;
+                thread_contexts[thread_id].job_finished = true;
             }
         }
     }
@@ -641,41 +657,46 @@ unsigned __int64 network_buffer__extract_uint64(network_buffer_t* this, int size
     return value;
 }
 
-void init_socket(char* ip_address,unsigned short port)
+void init_socket(char* ip_address, unsigned short port, int thread_id)
 {
     WSADATA wsa;
 
     struct sockaddr_in si_other;
-    server_address_size = sizeof(si_other);
+    thread_contexts[thread_id].server_address_size = sizeof(si_other);
 
     //Initialise winsock
 
     int status = WSAStartup(0x202, &wsa);
     if (status == SOCKET_ERROR)
     {
+#ifdef DEBUG_ACTIVE
+
         printf("WSAStartup == SOCKET_ERROR\n");
+#endif
         WSACleanup();
     }
     else
     {
-        printf("socket initialized \n");
+#ifdef DEBUG_ACTIVE
+        printf("%s %d %s", "socket initialized thread_id: ", thread_id, "\n");
+#endif
     }
 
 
-    server_address->sin_family = AF_INET;
-    server_address->sin_addr.s_addr = inet_addr(ip_address);
-    server_address->sin_port = htons(port);
+    thread_contexts[thread_id].server_address->sin_family = AF_INET;
+    thread_contexts[thread_id].server_address->sin_addr.s_addr = inet_addr(ip_address);
+    thread_contexts[thread_id].server_address->sin_port = htons(port);
 
-    client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    thread_contexts[thread_id].client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-    if (client_socket == INVALID_SOCKET)
+    if (thread_contexts[thread_id].client_socket == INVALID_SOCKET)
     {
         printf("socket creation failed");
         WSACleanup();
         return;
     }
 
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)receive_data_thread, 0, 0, 0); //crashes without creating new thread
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)receive_data_thread, thread_id, 0, 0); //crashes without creating new thread
 
     //char peer0_0[] = { /* Packet 427 */
     //0x06, 0xf0, 0x56, 0x00, 0x00, 0x00 };
@@ -685,15 +706,15 @@ void init_socket(char* ip_address,unsigned short port)
 
     int data_to_send_size = sizeof(peer0_0);
 
-    memcpy(data_to_send_buffer, peer0_0, 6);
+    memcpy(thread_contexts[thread_id].data_to_send_buffer, peer0_0, 6);
 
     int send_bytes_count = sendto(
-        client_socket,
-        data_to_send_buffer,
+        thread_contexts[thread_id].client_socket,
+        thread_contexts[thread_id].data_to_send_buffer,
         data_to_send_size,
         0,
-        server_address,
-        server_address_size);
+        thread_contexts[thread_id].server_address,
+        thread_contexts[thread_id].server_address_size);
     
     if (send_bytes_count == SOCKET_ERROR)
     {
@@ -701,78 +722,88 @@ void init_socket(char* ip_address,unsigned short port)
         WSACleanup();
         return;
     }
-
-
-
 }
 
 
 
-__declspec(dllexport) char* __cdecl get_server_details(char* ip_address, unsigned short port)
+__declspec(dllexport) char* __cdecl get_server_details(char* ip_address, unsigned short port, int thread_id)
 {
-    did_receive_response_yet = true;
+    thread_contexts[thread_id].did_receive_response_yet = true;
     Sleep(20);
-    did_receive_response_yet = false;
+    thread_contexts[thread_id].did_receive_response_yet = false;
 
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)watch, 0, 0, 0);
-    
-    //AllocConsole();
-    //
-    //freopen("CONOUT$", "w", stdout);
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)watch, thread_id, 0, 0);
+
+#ifdef DEBUG_ACTIVE
+    if (!is_console_initialized)
+    {
+        AllocConsole();
+        freopen("CONOUT$", "w", stdout);
+        is_console_initialized = true;
+    }
+#endif
+
+    thread_contexts[thread_id].timestamp_connected = timeGetTime();
+    thread_contexts[thread_id].did_receive_response_yet = false;
+    thread_contexts[thread_id].client_socket = (SOCKET)calloc(sizeof(SOCKET), 1);
+    thread_contexts[thread_id].server_address = (SOCKADDR_IN*)calloc(sizeof(SOCKADDR_IN), 1);
+    thread_contexts[thread_id].client_address = (SOCKADDR_IN*)calloc(sizeof(SOCKADDR_IN), 1);
+    thread_contexts[thread_id].received_data_buffer = (unsigned char*)calloc(RECEIVED_DATA_BUFFER_SIZE, 1);
+    thread_contexts[thread_id].data_to_send_buffer = (unsigned char*)calloc(DATA_TO_SEND_BUFFER_SIZE, 1);
+    memset(thread_contexts[thread_id].return_buffer, 0, 1000);
+    thread_contexts[thread_id].testarry = (char*)calloc(450, 1);
+    thread_contexts[thread_id].json_message_object1 = cJSON_CreateObject();
+
+    cJSON_AddStringToObject(thread_contexts[thread_id].json_message_object1, "ip_address", ip_address);
+    cJSON_AddNumberToObject(thread_contexts[thread_id].json_message_object1, "port", port);
 
 
-    timestamp_connected = timeGetTime();
-    did_receive_response_yet = false;
-
-    client_socket = (SOCKET)calloc(sizeof(SOCKET), 1);
-    server_address = (SOCKADDR_IN*)calloc(sizeof(SOCKADDR_IN), 1);
-    client_address = (SOCKADDR_IN*)calloc(sizeof(SOCKADDR_IN), 1);
-
-    received_data_buffer = (unsigned char*)calloc(RECEIVED_DATA_BUFFER_SIZE, 1);
-    data_to_send_buffer = (unsigned char*)calloc(DATA_TO_SEND_BUFFER_SIZE, 1);
-    testarry = (char*)calloc(450, 1);
-
-    memset(return_buffer, 0, sizeof(return_buffer));
-
-    json_message_object1 = cJSON_CreateObject();
-
-    cJSON_AddStringToObject(json_message_object1, "ip_address", ip_address);
-    cJSON_AddNumberToObject(json_message_object1, "port", port);
-
-
-    if (client_socket == 0 || server_address == 0 || client_address == 0 || received_data_buffer == 0 || data_to_send_buffer == 0 || testarry == 0)
+    if (thread_contexts[thread_id].client_socket == 0 || 
+        thread_contexts[thread_id].server_address == 0 || 
+        thread_contexts[thread_id].client_address == 0 || 
+        thread_contexts[thread_id].received_data_buffer == 0 || 
+        thread_contexts[thread_id].data_to_send_buffer == 0 || 
+        thread_contexts[thread_id].testarry == 0)
     {
         return 0;
     }
 
-    job_finished = false;
+    thread_contexts[thread_id].job_finished = false;
 
+    if (!is_bitsmask_table_initialized)
+    {
+        is_bitsmask_table_initialized = true;
+        init_bitmask_table();
+    }
 
-    init_bitmask_table();
+    init_socket(ip_address, port, thread_id);
 
-    init_socket(ip_address, port);
-
-    while (!job_finished)
+    while (!thread_contexts[thread_id].job_finished)
     {
         Sleep(10);
     }
 
-    free(received_data_buffer);
-    free(data_to_send_buffer);
-    free(testarry);
 
-    received_data_buffer = 0;
-    data_to_send_buffer = 0;
-    testarry = 0;
+    memset(thread_contexts[thread_id].received_data_buffer, 0, RECEIVED_DATA_BUFFER_SIZE);
+    memset(thread_contexts[thread_id].data_to_send_buffer, 0, DATA_TO_SEND_BUFFER_SIZE);
+    memset(thread_contexts[thread_id].testarry, 0, 450);
 
-    cJSON_Delete(json_message_object1);
+    free(thread_contexts[thread_id].received_data_buffer);
+    free(thread_contexts[thread_id].data_to_send_buffer);
+    free(thread_contexts[thread_id].testarry);
 
-    closesocket(client_socket);
+    thread_contexts[thread_id].received_data_buffer = 0;
+    thread_contexts[thread_id].data_to_send_buffer = 0;
+    thread_contexts[thread_id].testarry = 0;
 
-    client_socket = 0;
-    server_address = 0;
-    client_address = 0;
+    cJSON_Delete(thread_contexts[thread_id].json_message_object1);
+
+    closesocket(thread_contexts[thread_id].client_socket);
+
+    thread_contexts[thread_id].client_socket = 0;
+    thread_contexts[thread_id].server_address = 0;
+    thread_contexts[thread_id].client_address = 0;
 
 
-    return &return_buffer[0];
+    return &thread_contexts[thread_id].return_buffer;
 }
