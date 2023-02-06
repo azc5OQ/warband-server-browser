@@ -38,7 +38,7 @@ int extract_int32(int size, int offset, int* cursor_in_bits, int size_in_bits, c
 void print_bits_of_byte(unsigned char value_to_print);
 void init_bitmask_table(void);
 void print_bits_of_memory_block(void* start_byte, int offset, char* comment);
-__declspec(dllexport) char* __cdecl get_server_details(char* ip_address, unsigned short port);
+__declspec(dllexport) char* __cdecl get_server_details(char* ip_address, unsigned short port, int thread_id);
 
 
-void init_socket(char* ip_address, unsigned short port);
+void init_socket(char* ip_address, unsigned short port, int thread_id);
