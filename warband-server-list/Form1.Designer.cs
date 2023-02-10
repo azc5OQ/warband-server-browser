@@ -43,12 +43,15 @@ namespace warband_server_list
             this.label_serversonline_value = new System.Windows.Forms.Label();
             this.label_playersonline = new System.Windows.Forms.Label();
             this.label_playersonline_value = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
+            this.listBox1 = new System.Windows.Forms.ListBox();
+
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(681, 413);
+            this.button1.Location = new System.Drawing.Point(698, 450);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(112, 25);
             this.button1.TabIndex = 0;
@@ -149,11 +152,36 @@ namespace warband_server_list
             this.label_playersonline_value.TabIndex = 5;
             this.label_playersonline_value.Text = "0";
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(636, 413);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(33, 13);
+            this.label1.TabIndex = 6;
+            this.label1.Text = "game";
+            // 
+            // listBox1
+            // 
+            this.listBox1.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.listBox1.FormattingEnabled = true;
+            this.listBox1.Items.AddRange(new object[] {
+            "warband",
+            "with fire and sword"});
+            this.listBox1.Location = new System.Drawing.Point(698, 407);
+            this.listBox1.Name = "listBox1";
+            this.listBox1.Size = new System.Drawing.Size(112, 26);
+            this.listBox1.TabIndex = 7;
+            this.listBox1.SelectedIndex = 0;
+
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(842, 492);
+            this.Controls.Add(this.listBox1);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.label_playersonline_value);
             this.Controls.Add(this.label_playersonline);
             this.Controls.Add(this.label_serversonline_value);
@@ -163,7 +191,7 @@ namespace warband_server_list
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "Form1";
-            this.Text = "Warband server browser";
+            this.Text = "mount and blade server browser";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             this.ResumeLayout(false);
@@ -187,6 +215,8 @@ namespace warband_server_list
         private System.Windows.Forms.Label label_serversonline_value;
         private System.Windows.Forms.Label label_playersonline;
         private System.Windows.Forms.Label label_playersonline_value;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ListBox listBox1;
     }
 }
 
