@@ -88,14 +88,14 @@ public partial class Form1 : Form
             return result;
         }
 
-        private async Task<string> GetServerListFromTaleworlds()
+        private async Task<string> GetServerListFromTaleworlds(string url)
         {
             string result = "";
             try
             {
                 using (var client = new HttpClient())
                 {
-                    client.BaseAddress = new Uri("http://warbandmain.taleworlds.com/handlerservers.ashx/?type=list");
+                    client.BaseAddress = new Uri(url);
 
                     HttpRequestMessage request = new HttpRequestMessage
                     {
@@ -133,14 +133,32 @@ public partial class Form1 : Form
             dataGridView1.Rows.Clear();
             dataGridView1.Refresh();
 
-            var task2 = Task.Run(() => this.GetServerListFromTaleworlds());
+            string url = "";
+
+            if (this.listBox1.SelectedIndex == 0)
+            {
+                url = "http://warbandmain.taleworlds.com/handlerservers.ashx/?type=list";
+            }
+            else if (this.listBox1.SelectedIndex == 1)
+            {
+                url = "http://warbandmain.taleworlds.com/handlerservers.ashx?type=list&gametype=wfas";
+            }
+
+
+
+            var task2 = Task.Run(() => this.GetServerListFromTaleworlds(url));
 
             String httpResponseString = task2.Result;
 
             string[] strings1 = splitIpAddressStringToSmallerStrings(20, httpResponseString);
 
+
             for (int i = 0; i < strings1.Length; i++)
             {
+                if (strings1[i] == null)
+                {
+                    continue;
+                }
                 ThreadUpdateList t = new ThreadUpdateList();
                 t.stringToWorkWith = strings1[i]; //testing
                 t.thread_id = i;
@@ -150,7 +168,6 @@ public partial class Form1 : Form
                 new Thread(new ThreadStart(t.Start)).Start();
             }
         }
-
 
 
         private void Form1_Load(object sender, EventArgs e)
